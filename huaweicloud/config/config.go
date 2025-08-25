@@ -1131,3 +1131,7 @@ func (c *Config) VpnV5Client(region string) (*golangsdk.ServiceClient, error) {
 func (c *Config) StsClient(region string) (*golangsdk.ServiceClient, error) {
 	return c.NewServiceClient("sts", region)
 }
+
+func (c *Config) MetaStudioClient(region string) (*golangsdk.ServiceClient, error) {
+	return c.NewServiceClient("metastudio", region)
+}

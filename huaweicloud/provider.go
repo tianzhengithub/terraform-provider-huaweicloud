@@ -94,6 +94,7 @@ import (
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/live"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/lts"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/meeting"
+	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/metastudio"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/modelarts"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/mpc"
 	"github.com/huaweicloud/terraform-provider-huaweicloud/huaweicloud/services/mrs"
@@ -3260,6 +3261,8 @@ func Provider() *schema.Provider {
 			"huaweicloud_images_image": deprecated.ResourceImsImage(),
 
 			"huaweicloud_workspace_app_warehouse_app": workspace.ResourceAppWarehouseApplication(),
+
+			"huaweicloud_metastudio_instance": metastudio.ResourceMetaStudio(),
 		},
 	}
 
