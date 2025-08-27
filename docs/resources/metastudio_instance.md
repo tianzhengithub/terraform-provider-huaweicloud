@@ -1,14 +1,15 @@
-# HuaweiCloud Meta Studio Order Resource
 
-Manages a Meta Studio public cloud service order within HuaweiCloud.
+# HuaweiCloud Meta Studio Resource
+
+Manages a Meta Studio resource within HuaweiCloud, supporting pre-paid billing mode with auto-renewal capabilities.
 
 ## Example Usage
 ```hcl
 resource "huaweicloud_metastudio_instance" "test" {
   period_type = 2
   period_num = 1
-  is_auto_renew = 1
-  resource_spec_code = "hws.resource.type.metastudio.avatarmodeling.number"
+  is_auto_renew = 0
+  resource_spec_code = "hws.resource.type.metastudio.modeling.avatarlive.channel"
 }
 ```
 
@@ -31,14 +32,16 @@ The following arguments are supported:
   Changing this creates a new resource.  
   Value range: `1` to `2147483647`.
 
-* `is_auto_renew` - (Optional, Int, ForceNew) Specifies whether to auto-renew the vault when it expires.
+* `is_auto_renew` - (Optional, Int, ForceNew) Specifies whether to auto-renew the resource when it expires.
   Changing this creates a new resource.  
   Valid values are:
   + `0` - Do not renew automatically (default)
   + `1` - Renew automatically
 
-* `resource_spec_code` - (Required, String, ForceNew) Specifies the resource specification code.
+* `resource_spec_code` - (Required, String, ForceNew) Specifies the resource specification code for user-purchased cloud service products. For details, see [Resource Types](https://support.huaweicloud.com/api-metastudio/metastudio_02_0042.html).
   Changing this creates a new resource.
+
+* `enable_force_new` - (Optional, String) Internal parameter (not recommended for user configuration).
 
 ## Attribute Reference
 
@@ -46,19 +49,27 @@ In addition to all arguments above, the following attributes are exported:
 
 * `id` - The resource ID.
 
-* `resource_id` - The resource ID of the Meta Studio resource.
-
-* `resource_type` - The type of the resource.
-
-* `business_type` - The business type of the resource.
-
 * `order_id` - The order ID associated with the resource.
 
 * `resource_expire_time` - The expiration time of the resource.
 
-* `status` - The status of the resource.
+* `business_type` - The business type of the resource.
 
-* `charging_mode` - The charging mode of the resource.
+* `sub_resource_type` - The sub-resource type.
+
+* `is_sub_resource` - Indicates whether it is a sub-resource.
+
+* `charging_mode` - The billing mode of the resource (e.g., `PERIODIC` for pre-paid).
+
+* `amount` - The total amount of the resource.
+
+* `usage` - The usage amount of the resource.
+
+* `status` - The status of the resource:
+  + `0` - Normal
+  + `1` - Frozen
+
+* `unit` - The unit of measurement for the resource amount.
 
 ## Timeouts
 
@@ -73,14 +84,22 @@ The Meta Studio resource can be imported using `id`, e.g.
 
 ## Important Notes
 
-1. **Charging Mode**:
-  - For **prePaid** resources (periodic billing), deleting the resource will unsubscribe the service
-  - For **ONE_TIME** resources , deleting only removes the resource from Terraform state
+1. **Auto-Pay Agreement**:
+  - Terraform will automatically sign the auto-pay agreement during resource creation
+  - No user intervention is required for this process
 
-2. **Resource Status**:
-  - Terraform will automatically wait for the order to complete processing after creation
-  - Resource status can be checked through the `status` attribute
+2. **Billing Modes**:
+  - **Periodic (pre-paid)**: Deleting the resource will unsubscribe the service
+  - **Other modes**: Deleting only removes the resource from Terraform state
 
-3. **Unsupported Operations**:
+3. **Resource Status**:
+  - Terraform automatically waits for order completion after creation
+  - Resource status can be monitored through the `status` attribute
+
+4. **Unsupported Operations**:
   - This resource does not support updates after creation
   - Changing any parameter requires recreating the resource
+
+5. **Deletion Behavior**:
+  - Pre-paid resources are unsubscribed upon deletion
+  - Non-prepaid resources are only removed from state management
