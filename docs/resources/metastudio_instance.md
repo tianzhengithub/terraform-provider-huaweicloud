@@ -4,7 +4,7 @@ Manages a Meta Studio public cloud service order within HuaweiCloud.
 
 ## Example Usage
 ```hcl
-resource "huaweicloud_metastudio" "test" {
+resource "huaweicloud_metastudio_instance" "test" {
   period_type = 2
   period_num = 1
   is_auto_renew = 1

@@ -51,6 +51,66 @@ func ResourceMetaStudio() *schema.Resource {
 				Required:    true,
 				Description: `Specifies the resource specification code`,
 			},
+			"order_id": {
+				Type:        schema.TypeString,
+				ForceNew:    true,
+				Computed:    true,
+				Description: `The order ID of resource`,
+			},
+			"resource_expire_time": {
+				Type:        schema.TypeString,
+				ForceNew:    true,
+				Computed:    true,
+				Description: `The resource expire time`,
+			},
+			"business_type": {
+				Type:        schema.TypeString,
+				ForceNew:    true,
+				Computed:    true,
+				Description: `The business type of resource`,
+			},
+			"sub_resource_type": {
+				Type:        schema.TypeString,
+				ForceNew:    true,
+				Computed:    true,
+				Description: `The sub-resource type of resource`,
+			},
+			"is_sub_resource": {
+				Type:        schema.TypeString,
+				ForceNew:    true,
+				Computed:    true,
+				Description: `Indicates whether it is a sub-resource. A sub-resource describes the quantity and unit of a subsidiary resource.`,
+			},
+			"charging_mode": {
+				Type:        schema.TypeString,
+				ForceNew:    true,
+				Computed:    true,
+				Description: `The billing mode`,
+			},
+			"amount": {
+				Type:        schema.TypeInt,
+				ForceNew:    true,
+				Computed:    true,
+				Description: `Total amount`,
+			},
+			"usage": {
+				Type:        schema.TypeString,
+				ForceNew:    true,
+				Computed:    true,
+				Description: `Usage amount`,
+			},
+			"status": {
+				Type:        schema.TypeInt,
+				ForceNew:    true,
+				Computed:    true,
+				Description: `Resource status. 0: Normal, 1: Frozen`,
+			},
+			"unit": {
+				Type:        schema.TypeString,
+				ForceNew:    true,
+				Computed:    true,
+				Description: `The unit of amount`,
+			},
 			"enable_force_new": {
 				Type:         schema.TypeString,
 				Optional:     true,
@@ -63,15 +123,18 @@ func ResourceMetaStudio() *schema.Resource {
 
 func resourceMetaStudioCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	var (
-		cfg     = meta.(*config.Config)
-		region  = cfg.GetRegion(d)
-		httpUrl = "v1/{project_id}/mss/public/orders"
+		cfg    = meta.(*config.Config)
+		region = cfg.GetRegion(d)
 	)
 	client, err := cfg.MetaStudioClient(region)
 	if err != nil {
 		return diag.Errorf("error creating MetaStudio client: %s", err)
 	}
-	orderId, err := resourceCreate(client, d, httpUrl)
+	// sign auto-pay agreements
+	if err := signAutoPayAgreeMents(client); err != nil {
+		return diag.Errorf("error signing auto-apy agreements: %s", err)
+	}
+	orderId, err := resourceCreate(client, d)
 	if err != nil {
 		return diag.Errorf("error creating MetaStudio: %s", err)
 	}
@@ -89,7 +152,39 @@ func resourceMetaStudioCreate(ctx context.Context, d *schema.ResourceData, meta 
 	return resourceMetaStudioRead(ctx, d, meta)
 }
 
-func resourceCreate(client *golangsdk.ServiceClient, d *schema.ResourceData, httpUrl string) (string, error) {
+func signAutoPayAgreeMents(client *golangsdk.ServiceClient) error {
+	httpUrl := "v1/{project_id}/tenants/special-agreements/signed"
+	requestPath := client.Endpoint + httpUrl
+	requestPath = strings.ReplaceAll(requestPath, "{project_id}", client.ProjectID)
+	createOpt := golangsdk.RequestOpts{
+		KeepResponseBody: true,
+		JSONBody:         utils.RemoveNil(buildSpecialAgreementSighReq()),
+	}
+	resp, err := client.Request("POST", requestPath, &createOpt)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode == 200 {
+		return nil
+	} else {
+		respBody, err := utils.FlattenResponse(resp)
+		if err != nil {
+			return err
+		} else {
+			return fmt.Errorf("failed to sign auto-pay-agreements: %s", respBody)
+		}
+	}
+}
+
+func buildSpecialAgreementSighReq() map[string]interface{} {
+	return map[string]interface{}{
+		"agreement_type": "AUTO-PAY",
+		"to-sign":        true,
+	}
+}
+
+func resourceCreate(client *golangsdk.ServiceClient, d *schema.ResourceData) (string, error) {
+	httpUrl := "v1/{project_id}/mss/public/orders"
 	requestPath := client.Endpoint + httpUrl
 	requestPath = strings.ReplaceAll(requestPath, "{project_id}", client.ProjectID)
 	createOpt := golangsdk.RequestOpts{
@@ -133,18 +228,21 @@ func resourceMetaStudioRead(ctx context.Context, d *schema.ResourceData, meta in
 	if err != nil {
 		return diag.Errorf("error creating MetaStudio client: %s", err)
 	}
-	resource, diagResult := GetResourceDetail(client, d)
+	resourceDetail, diagResult := GetResourceDetail(client, d)
 	if diagResult != nil {
 		return diagResult
 	}
 	mErr := multierror.Append(nil,
-		d.Set("resource_id", utils.PathSearch("resource_id", resource, nil).(string)),
-		d.Set("resource_type", utils.PathSearch("resource_type", resource, nil).(string)),
-		d.Set("business_type", utils.PathSearch("business_type", resource, nil).(string)),
-		d.Set("order_id", utils.PathSearch("order_id", resource, "").(string)),
-		d.Set("resource_expire_time", utils.PathSearch("resource_expire_time", resource, nil).(string)),
-		d.Set("status", utils.PathSearch("status", resource, nil).(int32)),
-		d.Set("charging_mode", utils.PathSearch("charging_mode", resource, nil).(string)),
+		d.Set("order_id", utils.PathSearch("order_id", resourceDetail, nil)),
+		d.Set("resource_expire_time", utils.PathSearch("resource_expire_time", resourceDetail, nil)),
+		d.Set("business_type", utils.PathSearch("business_type", resourceDetail, nil)),
+		d.Set("sub_resource_type", utils.PathSearch("sub_resource_type", resourceDetail, nil)),
+		d.Set("is_sub_resource", utils.PathSearch("is_sub_resource", resourceDetail, false)),
+		d.Set("charging_mode", utils.PathSearch("charging_mode", resourceDetail, nil)),
+		d.Set("amount", utils.PathSearch("amount", resourceDetail, nil)),
+		d.Set("usage", utils.PathSearch("usage", resourceDetail, nil)),
+		d.Set("status", utils.PathSearch("status", resourceDetail, nil)),
+		d.Set("unit", utils.PathSearch("unit", resourceDetail, nil)),
 	)
 	if mErr.ErrorOrNil() != nil {
 		return diag.Errorf("error setting MetaStudio resource fields: %s", mErr)
