@@ -254,7 +254,7 @@ func resourceMetaStudioRead(_ context.Context, d *schema.ResourceData, meta inte
 }
 
 func GetResourceDetail(client *golangsdk.ServiceClient, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
-	httpUrl := "/v1/{project_id}/tenants/resources"
+	httpUrl := "v1/{project_id}/tenants/resources"
 	requestPath := client.Endpoint + httpUrl
 	requestPath = strings.ReplaceAll(requestPath, "{project_id}", client.ProjectID)
 	requestPath = fmt.Sprintf("%s?resource_source=PURCHASED&resource_id=%v", requestPath, d.Id())
