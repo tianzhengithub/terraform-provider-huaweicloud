@@ -77,7 +77,7 @@ func ResourceMetaStudio() *schema.Resource {
 				Description: `The sub-resource type of resource`,
 			},
 			"is_sub_resource": {
-				Type:        schema.TypeString,
+				Type:        schema.TypeBool,
 				ForceNew:    true,
 				Computed:    true,
 				Description: `Indicates whether it is a sub-resource. A sub-resource describes the quantity and unit of a subsidiary resource.`,
@@ -89,13 +89,13 @@ func ResourceMetaStudio() *schema.Resource {
 				Description: `The billing mode`,
 			},
 			"amount": {
-				Type:        schema.TypeInt,
+				Type:        schema.TypeFloat,
 				ForceNew:    true,
 				Computed:    true,
 				Description: `Total amount`,
 			},
 			"usage": {
-				Type:        schema.TypeString,
+				Type:        schema.TypeFloat,
 				ForceNew:    true,
 				Computed:    true,
 				Description: `Usage amount`,
