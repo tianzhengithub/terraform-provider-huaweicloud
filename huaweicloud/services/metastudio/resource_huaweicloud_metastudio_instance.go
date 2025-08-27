@@ -2,6 +2,7 @@ package metastudio
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/chnsz/golangsdk"
 	"github.com/hashicorp/go-multierror"
@@ -139,6 +140,9 @@ func resourceMetaStudioCreate(ctx context.Context, d *schema.ResourceData, meta 
 		return diag.Errorf("error creating MetaStudio: %s", err)
 	}
 	bssClient, err := cfg.BssV2Client(cfg.GetRegion(d))
+	if err != nil {
+		return diag.Errorf("error creating BSS v2 client: %s", err)
+	}
 	timeout := d.Timeout(schema.TimeoutCreate)
 	// wait for order complete
 	if err := common.WaitOrderComplete(ctx, bssClient, orderId, timeout); err != nil {
@@ -170,9 +174,8 @@ func signAutoPayAgreeMents(client *golangsdk.ServiceClient) error {
 		respBody, err := utils.FlattenResponse(resp)
 		if err != nil {
 			return err
-		} else {
-			return fmt.Errorf("failed to sign auto-pay-agreements: %s", respBody)
 		}
+		return fmt.Errorf("failed to sign auto-pay-agreements: %s", respBody)
 	}
 }
 
@@ -219,7 +222,7 @@ func buildCreateMetaStudioParams(d *schema.ResourceData) map[string]interface{} 
 	return bodyParams
 }
 
-func resourceMetaStudioRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceMetaStudioRead(_ context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	var (
 		cfg    = meta.(*config.Config)
 		region = cfg.GetRegion(d)
@@ -291,15 +294,7 @@ func resourceMetaStudioDelete(ctx context.Context, d *schema.ResourceData, meta 
 		return diag.Errorf("error creating Workspace APP client: %s", err)
 	}
 	resourceId := d.Id()
-	if d.Get("charging_mode").(string) == "PERIODIC" {
-		if err := common.UnsubscribePrePaidResource(d, cfg, []string{resourceId}); err != nil {
-			return diag.Errorf("error unsubscribing meta studio resource (%s): %s",
-				resourceId, err)
-		}
-		if err := waitingForResourceDeleteCompleted(ctx, client, d); err != nil {
-			return diag.Errorf("error waiting for Workspace APP server (%s) deleted: %s", d.Id(), err)
-		}
-	} else {
+	if d.Get("charging_mode").(string) != "PERIODIC" {
 		errorMsg := `This resource is a one-time action resource. Deleting this 
 resource will not change the current resource status, but will only remove the resource information from the 
 tfstate file.`
@@ -309,6 +304,13 @@ tfstate file.`
 				Summary:  errorMsg,
 			},
 		}
+	}
+	if err := common.UnsubscribePrePaidResource(d, cfg, []string{resourceId}); err != nil {
+		return diag.Errorf("error unsubscribing meta studio resource (%s): %s",
+			resourceId, err)
+	}
+	if err := waitingForResourceDeleteCompleted(ctx, client, d); err != nil {
+		return diag.Errorf("error waiting for Workspace APP server (%s) deleted: %s", d.Id(), err)
 	}
 	return nil
 }
@@ -323,9 +325,8 @@ func waitingForResourceDeleteCompleted(ctx context.Context, client *golangsdk.Se
 				return resourceDetail, "PENDING", nil
 			} else if diagResult[0].Summary == "Resource not found" {
 				return "deleted", "COMPLETED", nil
-			} else {
-				return nil, "ERROR", fmt.Errorf(diagResult[0].Summary)
 			}
+			return nil, "ERROR", errors.New(diagResult[0].Summary)
 		},
 		Timeout:      d.Timeout(schema.TimeoutDelete),
 		Delay:        10 * time.Second,
@@ -335,7 +336,7 @@ func waitingForResourceDeleteCompleted(ctx context.Context, client *golangsdk.Se
 	return err
 }
 
-func resourceMetaStudioUpdate(ctx context.Context, data *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceMetaStudioUpdate(_ context.Context, _ *schema.ResourceData, _ interface{}) diag.Diagnostics {
 	// No processing is performed in the 'Update()' method because the resource doesn't support update operation.
 	return nil
 }
