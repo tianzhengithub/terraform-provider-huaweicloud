@@ -181,7 +181,7 @@ func signAutoPayAgreeMents(client *golangsdk.ServiceClient) error {
 
 func buildSpecialAgreementSighReq() map[string]interface{} {
 	return map[string]interface{}{
-		"agreement_type": "AUTO-PAY",
+		"agreement_type": "AUTO_PAY",
 		"to-sign":        true,
 	}
 }
